@@ -5,16 +5,6 @@ inline bool comp(Word *w1, Word *w2)
 	return w1->count > w2->count;
 }
 
-long count_word(vector<Word *>& vocab)
-{
-	long total_words = 0;
-	size_t vocab_size = vocab.size();
-	for(size_t i = 0; i < vocab_size; ++i)
-		total_words += vocab[i]->count;
-	
-	return total_words;
-}
-
 Word2Vec::~Word2Vec(void)
 {
 }
@@ -42,9 +32,9 @@ vector<vector<string>> Word2Vec::line_docs(string filename)
 
 void Word2Vec::create_huffman_tree()
 {
-	size_t vocab_size = this->vocab.size();
+	size_t vocab_size = vocab.size();
 
-	vector<Word *> heap = this->vocab;
+	vector<Word *> heap = vocab;
 	make_heap(heap.begin(), heap.end(), comp);
 
 	for(size_t i = 0; i < vocab_size - 1; ++i)
@@ -98,9 +88,7 @@ void Word2Vec::make_table()
 	double train_words_pow = 0.0;
 
 	for(const auto& v: vocab)
-	{
 		train_words_pow += pow((float)v->count, power);
-	}
 
 	size_t idx = 0;
 	double d1 = pow(float(vocab[idx]->count), power) / train_words_pow;
@@ -125,7 +113,10 @@ void Word2Vec::make_table()
 void Word2Vec::precalc_sampling()
 {
 	size_t vocab_size = vocab.size();
-	long total_words = count_word(vocab);
+	long total_words = 0;
+	for(auto v: vocab)
+		total_words +=v->count;
+
 	float threshold_count  = subsample_threshold * total_words;
 
 	if(subsample_threshold > 0)
@@ -178,7 +169,6 @@ void Word2Vec::build_vocab(vector<vector<string>> &sentences)
 void Word2Vec::save_vocab(string vocab_filename)
 {
 	ofstream out(vocab_filename, std::ofstream::out);
-
 	for(auto& v: vocab)
 		out << v->index << " " << v->count << " " << v->text << endl;
 }
@@ -206,32 +196,28 @@ void Word2Vec::init_weights(size_t vocab_size)
 	std::uniform_real_distribution<float> distribution(-0.5, 0.5);
 	auto uniform = [&] (int) {return distribution(generator);};
 
-	syn0 = RMatrixXf::NullaryExpr(vocab_size, word_dim, uniform);
-	syn0 = syn0 / (float)word_dim ;
+	W = RMatrixXf::NullaryExpr(vocab_size, word_dim, uniform);
+	W = W / (float)word_dim ;
 
 	if(train_method == "hs")
-		syn1 =RMatrixXf::Zero(vocab_size - 1, word_dim);
+		synapses1 =RMatrixXf::Zero(vocab_size - 1, word_dim);
 	else if(train_method == "ns")
-		syn1neg = RMatrixXf::Zero(vocab_size, word_dim);
+		synapses1_neg = RMatrixXf::Zero(vocab_size, word_dim);
 }
 
 vector<vector<Word *>> Word2Vec::build_sample(vector<vector<string>> & data)
 {
 	vector<vector<Word *>> samples;
-
 	std::uniform_real_distribution<float> distribution(0.0, 1.0);
-
-	size_t data_size = data.size();
 
 	for(auto& sentence: data)
 	{
 		vector<Word *> sampled;
-		size_t len = sentence.size();
 
 		for(auto text: sentence)
 		{
-			auto it = this->vocab_hash.find(text);
-			if (it == this->vocab_hash.end()) continue;
+			auto it = vocab_hash.find(text);
+			if (it == vocab_hash.end()) continue;
 			Word *word = it->second.get();
 
 			if(subsample_threshold > 0 && word->sample_probability < distribution(generator))
@@ -251,13 +237,13 @@ RowVectorXf& Word2Vec::hierarchical_softmax(Word * predict_word, RowVectorXf& pr
 	for(int i = 0; i < code_len; ++i)
 	{
 		size_t current_idx = predict_word->points[i];
-		float f = syn1.row(current_idx).dot(project_rep);
+		float f = synapses1.row(current_idx).dot(project_rep);
 		f = 1.0 / (1 + exp(-f));
 		float g = (1 - predict_word->codes[i] - f) * alpha;
 		// Propagate errors output -> hidden
-		project_grad += g * syn1.row(current_idx);
+		project_grad += g * synapses1.row(current_idx);
 		// Learn weights hidden -> output
-		this->syn1.row(current_idx) += g * project_rep;
+		synapses1.row(current_idx) += g * project_rep;
 	}
 	return project_grad;
 }
@@ -273,7 +259,7 @@ RowVectorXf& Word2Vec::negative_sampling(Word * predict_word, RowVectorXf& proje
 	auto targets_end = targets.end();
 	for (auto it: targets)
 	{
-		auto l2 = this->syn1neg.row(it.first);
+		auto l2 = synapses1_neg.row(it.first);
 		float f = l2.dot(project_rep);
 		f = 1.0 / (1 + exp(-f));
 		float g = (it.second - f) * alpha;
@@ -305,7 +291,7 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 		for(int j = index_begin; j < index_end; ++j)
 		{
 			if(j != i)
-				neu1 += syn0.row(sentence[j]->index);
+				neu1 += W.row(sentence[j]->index);
 		}
 		if(cbow_mean)
 			neu1 /= (float)(index_end - index_begin - 1);
@@ -322,7 +308,7 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 		for(int j = index_begin; j < index_end; ++j)
 		{
 			if(j != i)
-				syn0.row(sentence[j]->index) += neu1_grad;
+				W.row(sentence[j]->index) += neu1_grad;
 		}
 	}
 }
@@ -336,7 +322,7 @@ void Word2Vec::train_sentence_sg(vector<Word *>& sentence, float alpha)
 	for (int i = 0; i < len; ++i)
 	{
 		neu1_grad.setZero();
-		neu1 = syn0.row(sentence[i]->index);
+		neu1 = W.row(sentence[i]->index);
 		int reduced_window = distribution_window(generator);
 		int index_begin = max(0, i - window + reduced_window);
 		int index_end = min((int)len, i + window + 1 - reduced_window);
@@ -353,7 +339,7 @@ void Word2Vec::train_sentence_sg(vector<Word *>& sentence, float alpha)
 				neu1_grad = negative_sampling(sentence[j], neu1, neu1_grad, alpha);
 			}
 		}
-		syn0.row(sentence[i]->index) += neu1_grad;
+		W.row(sentence[i]->index) += neu1_grad;
 	}
 }
 
@@ -362,9 +348,8 @@ void Word2Vec::train(vector<vector<string>> &sentences)
 	init_weights(vocab.size());
 
 	long long current_words = 0;
-	size_t n_sentences = sentences.size();
+	size_t sentences_size = sentences.size();
 	long long  train_words = 0;
-
 
 	vector<vector<Word *>> samples = build_sample(sentences);
 	for(auto& s: samples)
@@ -373,7 +358,7 @@ void Word2Vec::train(vector<vector<string>> &sentences)
 	for(int it = 0; it < iter; ++it)
 	{
         #pragma omp parallel for
-		for(int i = 0; i < n_sentences; ++i)
+		for(int i = 0; i < sentences_size; ++i)
 		{
 			float alpha = std::max(min_alpha, float(init_alpha * (1.0 - 1.0 / iter * current_words / train_words)));
 			if(i % 100 == 0)
@@ -398,19 +383,17 @@ void Word2Vec::save_word2vec(string filename, bool binary)
 
 	if(binary)
 	{
-		ofstream out(filename, ios::binary);
-
 	}
 	else
 	{
 		ofstream out(filename);
 
-		out << syn0.rows() << " " << syn0.cols() << std::endl;
+		out << W.rows() << " " << W.cols() << std::endl;
 
 		size_t vocab_size = vocab.size();
 		for(auto v: vocab)
 		{
-			out << v->text << " " << syn0.row(v->index).format(CommaInitFmt) << endl;;
+			out << v->text << " " << W.row(v->index).format(CommaInitFmt) << endl;;
 		}
 		out.close();
 	}
@@ -426,17 +409,17 @@ void Word2Vec::load_word2vec(string word2vec_filename, bool binary)
 		ifstream in(word2vec_filename);
 		string s, text;
 		std::getline(in, s);
-		size_t vocab_size, project_layer_size;
+		size_t vocab_size, word_dim;
 		istringstream iss(s);
-		iss >> vocab_size >> project_layer_size;
+		iss >> vocab_size >> word_dim;
 
 		while (std::getline(in, s))
 		{
 			istringstream iss(s);
 			iss >> text;
-			auto w2v = syn0.row(vocab_hash[text]->index);
+			auto w2v = W.row(vocab_hash[text]->index);
 
-			for(int i = 0; i < project_layer_size; ++i)
+			for(int i = 0; i < word_dim; ++i)
 			{
 				iss >> w2v[i];
 			}

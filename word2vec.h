@@ -32,8 +32,8 @@ public:
 	int window;
 	int min_count;
 	int table_size;
-	int word_dim;    //dim of word vector
-	int negative;              //num of negetive samples
+	int word_dim;
+	int negative;                  //num of negetive samples
 	float subsample_threshold;
 	float init_alpha;
 	float min_alpha;
@@ -47,7 +47,7 @@ public:
 	unordered_map<string, WordP> vocab_hash;
 	vector<size_t> table;
 
-	RMatrixXf syn0, syn1, syn1neg;
+	RMatrixXf W, synapses1, synapses1_neg;
 
 	std::random_device rd;
 	std::mt19937 generator;
@@ -59,7 +59,7 @@ public:
 	~Word2Vec(void);
 
 	Word2Vec(int iter=1, int window=5, int min_count=5, int table_size=100000000, int word_dim=200, 
-		int negative=0, float subsample_threshold=0.0001, float init_alpha=0.025, float min_alpha=1e-6,
+		int negative=0, float subsample_threshold=0.001, float init_alpha=0.025, float min_alpha=1e-6,
 		bool cbow_mean=false, string train_method="hs", string model="cbow");
 
 	vector<vector<string>> line_docs(string file_name);
