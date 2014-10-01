@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
 	}
 
 	string input_file = "";
-	string output_file = "text8-sg.txt";
+	string output_file = "";
 	string save_vocab_file = "";
 	string read_vocab_file = "";
 	string model = "";
