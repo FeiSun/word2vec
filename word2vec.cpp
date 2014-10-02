@@ -248,15 +248,22 @@ RowVectorXf& Word2Vec::hierarchical_softmax(Word * predict_word, RowVectorXf& pr
 	return project_grad;
 }
 
-RowVectorXf& Word2Vec::negative_sampling(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha)
+RowVectorXf& Word2Vec::negative_sampling(set<size_t>& idx, Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha)
 {
 	unordered_map<size_t, uint8_t> targets;
-	for (int i = 0; i <= negative; ++i)
-		targets[table[distribution_table(generator)]] = 0;
+	for (int j = 0; j <= negative;)
+		{
+			auto x = table[distribution_table(generator)];
+			//do not use words in window as negative sample
+			if(idx.count(x) == 0)
+			{
+				targets[x] = 0;
+				j++;
+			}
+		}
 
 	targets[predict_word->index] = 1;
 
-	auto targets_end = targets.end();
 	for (auto it: targets)
 	{
 		auto l2 = synapses1_neg.row(it.first);
@@ -288,11 +295,12 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 		//input->projecten
 		neu1.setZero();
 		neu1_grad.setZero();
+		set<size_t> idx;
 		for(int j = index_begin; j < index_end; ++j)
-		{
 			if(j != i)
-				neu1 += W.row(sentence[j]->index);
-		}
+				idx.insert(sentence[j]->index);
+
+		for(auto id: idx) neu1 += W.row(id);
 		if(cbow_mean)
 			neu1 /= (float)(index_end - index_begin - 1);
 
@@ -302,14 +310,10 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 		}
 		if (negative > 0)
 		{
-			neu1_grad = negative_sampling(sentence[i], neu1, neu1_grad, alpha);
+			neu1_grad = negative_sampling(idx, sentence[i], neu1, neu1_grad, alpha);
 		}
 		// hidden -> in
-		for(int j = index_begin; j < index_end; ++j)
-		{
-			if(j != i)
-				W.row(sentence[j]->index) += neu1_grad;
-		}
+		for(auto id: idx)  W.row(id) += neu1_grad;
 	}
 }
 
@@ -327,6 +331,11 @@ void Word2Vec::train_sentence_sg(vector<Word *>& sentence, float alpha)
 		int index_begin = max(0, i - window + reduced_window);
 		int index_end = min((int)len, i + window + 1 - reduced_window);
 
+		set<size_t> idx;
+		for(int j = index_begin; j < index_end; ++j)
+			if(j != i)
+				idx.insert(sentence[j]->index);
+
 		for(int j = index_begin; j < index_end; ++j)
 		{
 			if(j == i) continue;
@@ -336,7 +345,7 @@ void Word2Vec::train_sentence_sg(vector<Word *>& sentence, float alpha)
 			}
 			if(negative > 0)
 			{
-				neu1_grad = negative_sampling(sentence[j], neu1, neu1_grad, alpha);
+				neu1_grad = negative_sampling(idx, sentence[j], neu1, neu1_grad, alpha);
 			}
 		}
 		W.row(sentence[i]->index) += neu1_grad;
@@ -346,10 +355,8 @@ void Word2Vec::train_sentence_sg(vector<Word *>& sentence, float alpha)
 void Word2Vec::train(vector<vector<string>> &sentences)
 {
 	init_weights(vocab.size());
-
 	long long current_words = 0;
-	size_t sentences_size = sentences.size();
-	long long  train_words = 0;
+	long long train_words = 0;
 
 	vector<vector<Word *>> samples = build_sample(sentences);
 	for(auto& s: samples)
@@ -358,7 +365,7 @@ void Word2Vec::train(vector<vector<string>> &sentences)
 	for(int it = 0; it < iter; ++it)
 	{
         #pragma omp parallel for
-		for(int i = 0; i < sentences_size; ++i)
+		for(int i = 0; i < samples.size(); ++i)
 		{
 			float alpha = std::max(min_alpha, float(init_alpha * (1.0 - 1.0 / iter * current_words / train_words)));
 			if(i % 100 == 0)
@@ -370,6 +377,10 @@ void Word2Vec::train(vector<vector<string>> &sentences)
 				train_sentence_cbow(samples[i], alpha);
 			else if(model == "sg")
 				train_sentence_sg(samples[i], alpha);
+			else if(model == "cbow_align")
+				train_sentence_cbow_align(samples[i], alpha);
+			else if(model == "sg_align")
+				train_sentence_sg_align(samples[i], alpha);
 
 			#pragma omp atomic
 			current_words += samples[i].size();

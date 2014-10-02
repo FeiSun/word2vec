@@ -1,4 +1,4 @@
-﻿// require eigen, c++11, openmp(for multithread)
+// require eigen, c++11, openmp(for multithread)
 // g++ main.cpp Word2Vec.cpp -oword2vec -I/usr/local/include/eigen/ -std=c++11 -Ofast -march=native -funroll-loops -fopenmp
 #include "Word2Vec.h"
 
@@ -112,12 +112,12 @@ int main(int argc, char* argv[])
 	int word_dim = 200;
 	float init_alpha = 0.025f;
 	int window = 5;
-	float subsample_threshold = 0.0001;
+	float subsample_threshold = 0.001;
 	float min_alpha = init_alpha * 0.0001;
 	bool cbow_mean = true;
 	int negative = 0;
 	int num_threads = 1;
-	int iter = 5;
+	int iter = 1;
 	int min_count = 5;
 
 	if ((i = ArgPos((char *)"-size", argc, argv)) > 0)
@@ -128,11 +128,9 @@ int main(int argc, char* argv[])
 		save_vocab_file = std::string(argv[i + 1]);
 	if ((i = ArgPos((char *)"-read-vocab", argc, argv)) > 0)
 		read_vocab_file = std::string(argv[i + 1]);
-	//if ((i = ArgPos((char *)"-debug", argc, argv)) > 0) debug_mode = atoi(argv[i + 1]);
 	//if ((i = ArgPos((char *)"-binary", argc, argv)) > 0) binary = atoi(argv[i + 1]);
 	if ((i = ArgPos((char *)"-model", argc, argv)) > 0)
 		model = std::string(argv[i + 1]);
-	//if (cbow) alpha = 0.05;
 	if ((i = ArgPos((char *)"-alpha", argc, argv)) > 0)
 		init_alpha = atof(argv[i + 1]);
 	if ((i = ArgPos((char *)"-output", argc, argv)) > 0)
@@ -163,14 +161,14 @@ int main(int argc, char* argv[])
 		cout << "Default use negative sampling model" << endl;
 	}
 
-	if(model == "sg" && train_method == "ns" && negative <= 0)
+	if(train_method == "ns" && negative <= 0)
 	{
 		cout << "Please set -negative > 0!" << endl;
 		return 1;
 	}
 	if(train_method == "hs" && negative > 0)
 	{
-		cout << "Please set -negative = 0 under hierarchical softmax!" << endl;
+		cout << "Do not set -negative under hierarchical softmax!" << endl;
 		return 1;
 	}
 
@@ -180,16 +178,15 @@ int main(int argc, char* argv[])
 	omp_set_num_threads(num_threads);
 
 	vector<vector<string>> sentences = text8_corpus();
-
 	w2v.build_vocab(sentences);
+
 	if(save_vocab_file != "")
-	{
 		w2v.save_vocab(save_vocab_file);
-	}
 
 	w2v.train(sentences);
 
-	w2v.save_word2vec(output_file);
+	if(output_file != "")
+		w2v.save_word2vec(output_file);
 
 	return 0;
 }
