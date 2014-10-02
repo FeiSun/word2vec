@@ -377,10 +377,6 @@ void Word2Vec::train(vector<vector<string>> &sentences)
 				train_sentence_cbow(samples[i], alpha);
 			else if(model == "sg")
 				train_sentence_sg(samples[i], alpha);
-			else if(model == "cbow_align")
-				train_sentence_cbow_align(samples[i], alpha);
-			else if(model == "sg_align")
-				train_sentence_sg_align(samples[i], alpha);
 
 			#pragma omp atomic
 			current_words += samples[i].size();
