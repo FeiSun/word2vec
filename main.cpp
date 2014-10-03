@@ -4,7 +4,6 @@
 
 void help()
 {
-
 	cout << "WORD VECTOR estimation toolkit v 0.1c" << endl << endl;
 	cout << "Options:" << endl;
 	cout << "Parameters for training:" << endl;
