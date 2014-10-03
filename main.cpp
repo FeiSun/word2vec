@@ -171,11 +171,6 @@ int main(int argc, char* argv[])
 		cout << "Do not set -negative under hierarchical softmax!" << endl;
 		return 1;
 	}
-	if(train_method == "hs" && model.find("align") != string::npos)
-	{
-		cout << "Please use negative sampling in aligned skip gram model!" << endl;
-		return 1;
-	}
 
 	Word2Vec w2v(iter, window, min_count, table_size, word_dim, negative, subsample_threshold,
 		init_alpha, min_alpha, cbow_mean, train_method, model);
