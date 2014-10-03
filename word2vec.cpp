@@ -248,19 +248,11 @@ RowVectorXf& Word2Vec::hierarchical_softmax(Word * predict_word, RowVectorXf& pr
 	return project_grad;
 }
 
-RowVectorXf& Word2Vec::negative_sampling(set<size_t>& idx, Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha)
+RowVectorXf& Word2Vec::negative_sampling(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha)
 {
 	unordered_map<size_t, uint8_t> targets;
-	for (int j = 0; j <= negative;)
-		{
-			auto x = table[distribution_table(generator)];
-			//do not use words in window as negative sample
-			if(idx.count(x) == 0)
-			{
-				targets[x] = 0;
-				j++;
-			}
-		}
+	for (int j = 0; j <= negative; ++j)
+		targets[table[distribution_table(generator)]] = 0;
 
 	targets[predict_word->index] = 1;
 
@@ -310,7 +302,7 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 		}
 		if (negative > 0)
 		{
-			neu1_grad = negative_sampling(idx, sentence[i], neu1, neu1_grad, alpha);
+			neu1_grad = negative_sampling(sentence[i], neu1, neu1_grad, alpha);
 		}
 		// hidden -> in
 		for(auto id: idx)  W.row(id) += neu1_grad;
@@ -331,11 +323,6 @@ void Word2Vec::train_sentence_sg(vector<Word *>& sentence, float alpha)
 		int index_begin = max(0, i - window + reduced_window);
 		int index_end = min((int)len, i + window + 1 - reduced_window);
 
-		set<size_t> idx;
-		for(int j = index_begin; j < index_end; ++j)
-			if(j != i)
-				idx.insert(sentence[j]->index);
-
 		for(int j = index_begin; j < index_end; ++j)
 		{
 			if(j == i) continue;
@@ -345,12 +332,13 @@ void Word2Vec::train_sentence_sg(vector<Word *>& sentence, float alpha)
 			}
 			if(negative > 0)
 			{
-				neu1_grad = negative_sampling(idx, sentence[j], neu1, neu1_grad, alpha);
+				neu1_grad = negative_sampling(sentence[j], neu1, neu1_grad, alpha);
 			}
 		}
 		W.row(sentence[i]->index) += neu1_grad;
 	}
 }
+
 
 void Word2Vec::train(vector<vector<string>> &sentences)
 {

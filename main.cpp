@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
 	}
 
 	string input_file = "";
-	string output_file = "";
+	string output_file = "text8-sg.txt";
 	string save_vocab_file = "";
 	string read_vocab_file = "";
 	string model = "";
@@ -169,6 +169,11 @@ int main(int argc, char* argv[])
 	if(train_method == "hs" && negative > 0)
 	{
 		cout << "Do not set -negative under hierarchical softmax!" << endl;
+		return 1;
+	}
+	if(train_method == "hs" && model.find("align") != string::npos)
+	{
+		cout << "Please use negative sampling in aligned skip gram model!" << endl;
 		return 1;
 	}
 

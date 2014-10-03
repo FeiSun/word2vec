@@ -77,7 +77,7 @@ public:
 	vector<vector<Word *>> build_sample(vector<vector<string>> & data);
 
 	RowVectorXf& hierarchical_softmax(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha);
-	RowVectorXf& negative_sampling(set<size_t>& idx, Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha);
+	RowVectorXf& negative_sampling(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha);
 	void train_sentence_cbow(vector<Word *>& sentence, float alpha);
 	void train_sentence_sg(vector<Word *>& sentence, float alpha);
 
