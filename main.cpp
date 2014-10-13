@@ -180,12 +180,12 @@ int main(int argc, char* argv[])
 	w2v.build_vocab(sentences);
 
 	if(save_vocab_file != "")
-		w2v.save_vocab(save_vocab_file);
+		w2v.save_word2vec(save_vocab_file);
 
 	w2v.train(sentences);
 
 	if(output_file != "")
-		w2v.save_word2vec(output_file);
+		w2v.save_word2vec(output_file, w2v.W);
 
 	return 0;
 }

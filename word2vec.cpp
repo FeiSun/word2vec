@@ -372,7 +372,7 @@ void Word2Vec::train(vector<vector<string>> &sentences)
 	}
 }
 
-void Word2Vec::save_word2vec(string filename, bool binary)
+void Word2Vec::save_word2vec(string filename, const RMatrixXf& data, bool binary)
 {
 	IOFormat CommaInitFmt(StreamPrecision, DontAlignCols);
 
@@ -383,12 +383,12 @@ void Word2Vec::save_word2vec(string filename, bool binary)
 	{
 		ofstream out(filename);
 
-		out << W.rows() << " " << W.cols() << std::endl;
+		out << data.rows() << " " << data.cols() << std::endl;
 
 		size_t vocab_size = vocab.size();
 		for(auto v: vocab)
 		{
-			out << v->text << " " << W.row(v->index).format(CommaInitFmt) << endl;;
+			out << v->text << " " << data.row(v->index).format(CommaInitFmt) << endl;;
 		}
 		out.close();
 	}
