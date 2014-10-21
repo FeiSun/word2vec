@@ -24,8 +24,7 @@ vector<vector<string>> Word2Vec::line_docs(string filename)
 	while (std::getline(in, s))
 	{
 		istringstream iss(s);
-		vector<string> sentence{istream_iterator<string>{iss}, istream_iterator<string>{}};
-		sentences.push_back(std::move(sentence));
+		sentences.emplace_back(istream_iterator<string>{iss}, istream_iterator<string>{});
 	}
 	return std::move(sentences);
 }
