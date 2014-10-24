@@ -170,6 +170,7 @@ void Word2Vec::save_vocab(string vocab_filename)
 	ofstream out(vocab_filename, std::ofstream::out);
 	for(auto& v: vocab)
 		out << v->index << " " << v->count << " " << v->text << endl;
+	out.close();
 }
 
 void Word2Vec::read_vocab(string vocab_filename)
@@ -188,6 +189,7 @@ void Word2Vec::read_vocab(string vocab_filename)
 		vocab.push_back(w);
 		vocab_hash[w->text] = WordP(w);
 	}
+	in.close();
 }
 
 void Word2Vec::init_weights(size_t vocab_size)
@@ -377,6 +379,27 @@ void Word2Vec::save_word2vec(string filename, const RMatrixXf& data, bool binary
 
 	if(binary)
 	{
+		std::ofstream out(filename, std::ios::binary);
+		char blank = ' ';
+		char enter = '\n'; 
+		int size = sizeof(char);
+		int r_size = data.cols() * sizeof(RMatrixXf::Scalar);
+
+		RMatrixXf::Index r = data.rows();
+		RMatrixXf::Index c = data.cols();
+		out.write((char*) &r, sizeof(RMatrixXf::Index));
+		out.write(&blank, size);
+		out.write((char*) &c, sizeof(RMatrixXf::Index));
+		out.write(&enter, size);
+
+		for(auto v: vocab)
+		{
+			out.write(v->text.c_str(), v->text.size());
+			out.write(&blank, size);
+			out.write((char*) data.row(v->index).data(), r_size);
+			out.write(&enter, size);
+		}
+		out.close();
 	}
 	else
 	{
@@ -384,7 +407,6 @@ void Word2Vec::save_word2vec(string filename, const RMatrixXf& data, bool binary
 
 		out << data.rows() << " " << data.cols() << std::endl;
 
-		size_t vocab_size = vocab.size();
 		for(auto v: vocab)
 		{
 			out << v->text << " " << data.row(v->index).format(CommaInitFmt) << endl;;
@@ -393,14 +415,42 @@ void Word2Vec::save_word2vec(string filename, const RMatrixXf& data, bool binary
 	}
 }
 
-void Word2Vec::load_word2vec(string word2vec_filename, bool binary)
+void Word2Vec::load_word2vec(string filename, bool binary)
 {
 	if(binary)
 	{
+		ifstream in(filename, std::ios::binary);
+
+		char temp_char;
+		int size = sizeof(char);
+		
+		RMatrixXf::Index r;
+		RMatrixXf::Index c;
+
+		in.read((char*) &r, sizeof(RMatrixXf::Index));
+		in.read(&temp_char, size);
+		in.read((char*) &c, sizeof(RMatrixXf::Index));
+		in.read(&temp_char, size);
+		
+		int r_size = c * sizeof(RMatrixXf::Scalar);
+
+		for(int i = 0; i < r; ++i)
+		{
+			string text = "";
+			in.read(&temp_char, size);
+			while(temp_char !=  ' ')
+			{
+				text += temp_char;
+				in.read(&temp_char, size);
+			}
+			in.read((char*) W.row(vocab_hash[text]->index).data(), r_size);
+			in.read(&temp_char, size);
+		}
+		in.close();
 	}
 	else
 	{
-		ifstream in(word2vec_filename);
+		ifstream in(filename);
 		string s, text;
 		std::getline(in, s);
 		size_t vocab_size, word_dim;
@@ -418,5 +468,6 @@ void Word2Vec::load_word2vec(string word2vec_filename, bool binary)
 				iss >> w2v[i];
 			}
 		}
+		in.close();
 	}
 }

@@ -84,7 +84,7 @@ public:
 	void train(vector<vector<string>> &sentences);
 
 	void save_word2vec(string filename, const RMatrixXf& data, bool binary=false);
-	void load_word2vec(string word2vec_filename, bool binary);
+	void load_word2vec(string word2vec_filename, bool binary=false);
 };
 
 #endif
