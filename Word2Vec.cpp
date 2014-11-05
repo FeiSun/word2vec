@@ -252,7 +252,7 @@ RowVectorXf& Word2Vec::hierarchical_softmax(Word * predict_word, RowVectorXf& pr
 RowVectorXf& Word2Vec::negative_sampling(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha)
 {
 	unordered_map<size_t, uint8_t> targets;
-	for (int j = 0; j <= negative; ++j)
+	for (int j = 0; j < negative; ++j)
 		targets[table[distribution_table(generator)]] = 0;
 
 	targets[predict_word->index] = 1;
@@ -279,23 +279,18 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 
 	for (int i = 0; i < len; ++i)
 	{
-		size_t code_len = sentence[i]->codes.size();
-
 		int reduced_window = distribution_window(generator);
 		int index_begin = max(0, i - window + reduced_window);
 		int index_end = min((int)len, i + window + 1 - reduced_window);
-		if ((index_end - index_begin) == 1) continue;
+		int neu1_num = index_end - index_begin - 1;
+		if (neu1_num) continue;
 		//input->projecten
 		neu1.setZero();
 		neu1_grad.setZero();
-		set<size_t> idx;
-		for(int j = index_begin; j < index_end; ++j)
-			if(j != i)
-				idx.insert(sentence[j]->index);
 
 		for(auto id: idx) neu1 += W.row(id);
 		if(cbow_mean)
-			neu1 /= (float)(index_end - index_begin - 1);
+			neu1 /= (float)neu1_num;
 
 		if(train_method == "hs")
 		{
@@ -306,6 +301,8 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 			neu1_grad = negative_sampling(sentence[i], neu1, neu1_grad, alpha);
 		}
 		// hidden -> in
+		if(cbow_mean)
+			neu1_grad /= (float)neu1_num;
 		for(auto id: idx)  W.row(id) += neu1_grad;
 	}
 }
@@ -347,12 +344,13 @@ void Word2Vec::train(vector<vector<string>> &sentences)
 	long long current_words = 0;
 	long long train_words = 0;
 
-	vector<vector<Word *>> samples = build_sample(sentences);
-	for(auto& s: samples)
-		train_words += s.size();
+	for(auto& sentence: sentences)
+		train_words += sentence.size();
 
 	for(int it = 0; it < iter; ++it)
 	{
+		vector<vector<Word *>> samples = build_sample(sentences);
+
         #pragma omp parallel for
 		for(int i = 0; i < samples.size(); ++i)
 		{
@@ -368,7 +366,7 @@ void Word2Vec::train(vector<vector<string>> &sentences)
 				train_sentence_sg(samples[i], alpha);
 
 			#pragma omp atomic
-			current_words += samples[i].size();
+			current_words += sentences[i].size();
 		}
 	}
 }
