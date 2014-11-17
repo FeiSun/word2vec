@@ -287,7 +287,11 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 		//input->projecten
 		neu1.setZero();
 		neu1_grad.setZero();
-
+		set<size_t> idx;
+		for(int j = index_begin; j < index_end; ++j)
+			if(j != i)
+				idx.insert(sentence[j]->index);
+			
 		for(auto id: idx) neu1 += W.row(id);
 		if(cbow_mean)
 			neu1 /= (float)neu1_num;
