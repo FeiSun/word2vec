@@ -194,7 +194,12 @@ int main(int argc, char* argv[])
 	w2v.train(sentences);
 
 	if(output_file != "")
-		w2v.save_word2vec(output_file, w2v.W);
+	{
+		if(train_method == "hs" && model == "cbow")
+			w2v.save_word2vec(output_file, w2v.C);	
+		else
+			w2v.save_word2vec(output_file, w2v.W);
+	}
 
 	return 0;
 }

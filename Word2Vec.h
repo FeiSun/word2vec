@@ -50,7 +50,7 @@ public:
 	unordered_map<string, WordP> vocab_hash;
 	vector<size_t> table;
 
-	RMatrixXf W, synapses1, synapses1_neg;
+	RMatrixXf W, synapses1, C;
 
 	std::random_device rd;
 	std::mt19937 generator;
@@ -79,7 +79,7 @@ public:
 	vector<vector<Word *>> build_sample(vector<vector<string>> & data);
 
 	RowVectorXf& hierarchical_softmax(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha);
-	RowVectorXf& negative_sampling(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha);
+	RowVectorXf& negative_sampling(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, RMatrixXf& target_matrix, float alpha);
 	void train_sentence_cbow(vector<Word *>& sentence, float alpha);
 	void train_sentence_sg(vector<Word *>& sentence, float alpha);
 

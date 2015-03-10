@@ -206,7 +206,7 @@ void Word2Vec::init_weights(size_t vocab_size)
 	if(train_method == "hs")
 		synapses1 =RMatrixXf::Zero(vocab_size - 1, word_dim);
 	else if(train_method == "ns")
-		synapses1_neg = RMatrixXf::Zero(vocab_size, word_dim);
+		C = RMatrixXf::Zero(vocab_size, word_dim);
 }
 
 vector<vector<Word *>> Word2Vec::build_sample(vector<vector<string>> & data)
@@ -248,7 +248,7 @@ RowVectorXf& Word2Vec::hierarchical_softmax(Word * predict_word, RowVectorXf& pr
 	return project_grad;
 }
 
-RowVectorXf& Word2Vec::negative_sampling(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, float alpha)
+RowVectorXf& Word2Vec::negative_sampling(Word * predict_word, RowVectorXf& project_rep, RowVectorXf& project_grad, RMatrixXf& target_matrix, float alpha)
 {
 	unordered_map<size_t, uint8_t> targets;
 	for (int i = 0; i < negative; ++i)
@@ -258,7 +258,7 @@ RowVectorXf& Word2Vec::negative_sampling(Word * predict_word, RowVectorXf& proje
 
 	for (auto it: targets)
 	{
-		auto l2 = synapses1_neg.row(it.first);
+		auto l2 = target_matrix.row(it.first);
 		float f = l2.dot(project_rep);
 		f = 1.0 / (1 + exp(-f));
 		float g = (it.second - f) * alpha;
@@ -297,7 +297,7 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 			idx.insert(sentence[j]->index);
 		}
 
-		for(auto id: idx) neu1 += W.row(id);
+		for(auto id: idx) neu1 += C.row(id);
 		if(cbow_mean)
 			neu1 /= (float)neu1_num;
 
@@ -307,12 +307,12 @@ void Word2Vec::train_sentence_cbow(vector<Word *>& sentence, float alpha)
 		}
 		if (negative > 0)
 		{
-			neu1_grad = negative_sampling(current_word, neu1, neu1_grad, alpha);
+			neu1_grad = negative_sampling(current_word, neu1, neu1_grad, W, alpha);
 		}
 		// hidden -> in
 		if(cbow_mean)
 			neu1_grad /= (float)neu1_num;
-		for(auto id: idx)  W.row(id) += neu1_grad;
+		for(auto id: idx)  C.row(id) += neu1_grad;
 	}
 }
 
@@ -345,12 +345,13 @@ void Word2Vec::train_sentence_sg(vector<Word *>& sentence, float alpha)
 			}
 			if(negative > 0)
 			{
-				neu1_grad = negative_sampling(sentence[j], neu1, neu1_grad, alpha);
+				neu1_grad = negative_sampling(sentence[j], neu1, neu1_grad, C, alpha);
 			}
 		}
 		W.row(sentence[i]->index) += neu1_grad;
 	}
 }
+
 
 void Word2Vec::train(vector<vector<string>> &sentences)
 {
@@ -376,8 +377,10 @@ void Word2Vec::train(vector<vector<string>> &sentences)
 		{
 			int s_id = sample_idx[i];
 			if(i % 10 == 0)
-			{
 				alpha = std::max(min_alpha, float(init_alpha * (1.0 - 1.0 / iter * current_words / train_words)));
+
+			if(i % 100 == 0)
+			{
 				printf("\rinit_alpha: %f  Progress: %f%% ", alpha, 100.0 / iter * current_words / train_words);
 				std::fflush(stdout);
 			}
