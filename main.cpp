@@ -4,6 +4,7 @@
 
 void help()
 {
+
 	cout << "WORD VECTOR estimation toolkit v 0.1c" << endl << endl;
 	cout << "Options:" << endl;
 	cout << "Parameters for training:" << endl;
@@ -102,16 +103,16 @@ int main(int argc, char* argv[])
 	}
 
 	string input_file = "";
-	string output_file = "";
+	string output_file = "text8-sgns.txt";
 	string save_vocab_file = "";
 	string read_vocab_file = "";
-	string model = "";
-	string train_method = "";
+	string model = "sg";
+	string train_method = "ns";
 	int table_size = 100000000;
 	int word_dim = 200;
 	float init_alpha = 0.025f;
 	int window = 5;
-	float subsample_threshold = 0.001;
+	float subsample_threshold = 0.0001;
 	float min_alpha = init_alpha * 0.0001;
 	bool cbow_mean = true;
 	int negative = 0;
@@ -170,15 +171,23 @@ int main(int argc, char* argv[])
 		cout << "Do not set -negative under hierarchical softmax!" << endl;
 		return 1;
 	}
+	if(train_method == "hs" && model.find("align") != string::npos)
+	{
+		cout << "Please use negative sampling in aligned skip gram model!" << endl;
+		return 1;
+	}
+
+	if(cbow_mean)
+		init_alpha = 0.05;
 
 	Word2Vec w2v(iter, window, min_count, table_size, word_dim, negative, subsample_threshold,
-		init_alpha, min_alpha, cbow_mean, train_method, model);
+		init_alpha, min_alpha, cbow_mean, num_threads, train_method, model);
 
 	omp_set_num_threads(num_threads);
-
+	//vector<vector<string>> sentences = w2v.line_docs("imdb_train.txt");
 	vector<vector<string>> sentences = text8_corpus();
 	w2v.build_vocab(sentences);
-
+	w2v.init_weights(w2v.vocab.size());
 	if(save_vocab_file != "")
 		w2v.save_vocab(save_vocab_file);
 

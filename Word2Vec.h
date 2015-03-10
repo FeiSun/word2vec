@@ -38,8 +38,10 @@ public:
 	float subsample_threshold;
 	float init_alpha;
 	float min_alpha;
+	int num_threads;
 	
 	bool cbow_mean;
+	bool phrase;
 	string train_method;
 	string model;
 
@@ -54,14 +56,14 @@ public:
 	std::mt19937 generator;
 	std::uniform_int_distribution<int> distribution_window;
 	std::uniform_int_distribution<int> distribution_table;
-
+	std::uniform_real_distribution<float> uni_dis;
 
 public:
 	~Word2Vec(void);
 
 	Word2Vec(int iter=1, int window=5, int min_count=5, int table_size=100000000, int word_dim=200, 
 		int negative=0, float subsample_threshold=0.001, float init_alpha=0.025, float min_alpha=1e-6,
-		bool cbow_mean=false, string train_method="hs", string model="cbow");
+		bool cbow_mean=false, int num_threads=1, string train_method="hs", string model="cbow");
 
 	vector<vector<string>> line_docs(string file_name);
 	void reduce_vocab();
